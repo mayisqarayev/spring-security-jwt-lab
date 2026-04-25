@@ -1,12 +1,11 @@
 package com.mayis.spring_security_jwt_lab.entity.role;
 
 import com.mayis.spring_security_jwt_lab.entity.base.BaseEntity;
+import com.mayis.spring_security_jwt_lab.entity.role.relation.RolePermission;
+import com.mayis.spring_security_jwt_lab.entity.user.relation.UserRole;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.JoinTable;
-import jakarta.persistence.ManyToMany;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
@@ -26,11 +25,9 @@ public class Role extends BaseEntity {
     @Column(length = 255)
     private String description;
 
-    @ManyToMany(fetch = FetchType.LAZY)
-    @JoinTable(
-            name = "role_permissions",
-            joinColumns = @JoinColumn(name = "role_id"),
-            inverseJoinColumns = @JoinColumn(name = "permission_id")
-    )
-    private Set<Permission> permissions = new HashSet<>();
+    @OneToMany(mappedBy = "role")
+    private Set<RolePermission> rolePermissions = new HashSet<>();
+
+    @OneToMany(mappedBy = "role")
+    private Set<UserRole> userRoles = new HashSet<>();
 }

@@ -1,15 +1,12 @@
 package com.mayis.spring_security_jwt_lab.entity.user;
 
 import com.mayis.spring_security_jwt_lab.entity.base.BaseEntity;
-import com.mayis.spring_security_jwt_lab.entity.role.Role;
+import com.mayis.spring_security_jwt_lab.entity.user.relation.UserRole;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.JoinTable;
-import jakarta.persistence.ManyToMany;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
@@ -48,11 +45,6 @@ public class User extends BaseEntity {
     @Column(nullable = false)
     private boolean credentialsNonExpired = true;
 
-    @ManyToMany(fetch = FetchType.LAZY)
-    @JoinTable(
-            name = "user_roles",
-            joinColumns = @JoinColumn(name = "user_id"),
-            inverseJoinColumns = @JoinColumn(name = "role_id")
-    )
-    private Set<Role> roles = new HashSet<>();
+    @OneToMany(mappedBy = "user")
+    private Set<UserRole> userRoles = new HashSet<>();
 }
