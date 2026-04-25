@@ -17,7 +17,6 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
-import java.util.function.Function;
 
 @Service
 public class JwtService {
@@ -35,80 +34,83 @@ public class JwtService {
         Map<String, Object> claims = new HashMap<>();
         claims.put(TOKEN_TYPE_CLAIM, JwtTokenType.ACCESS.name());
         claims.put(AUTHORITIES_CLAIM, userDetails.getAuthorities().stream().map(Object::toString).toList());
-        return buildToken(claims, userDetails, jwtProperties.accessExpiration(), accessSigningKey());
+        return buildAccessToken(claims, userDetails);
     }
 
     public String generateRefreshToken(CustomUserDetails userDetails) {
         Map<String, Object> claims = new HashMap<>();
         claims.put(TOKEN_TYPE_CLAIM, JwtTokenType.REFRESH.name());
-        return buildToken(claims, userDetails, jwtProperties.refreshExpiration(), refreshSigningKey());
+        return buildRefreshToken(claims, userDetails);
     }
 
-    public String extractSubject(String token, JwtTokenType tokenType) {
-        return extractClaim(token, Claims::getSubject, tokenType);
+    public String extractAccessSubject(String token) {
+        return parseAccessClaims(token).getSubject();
     }
 
-    public Instant extractExpiration(String token, JwtTokenType tokenType) {
-        Date expiration = extractClaim(token, Claims::getExpiration, tokenType);
-        return expiration.toInstant();
+    public String extractRefreshSubject(String token) {
+        return parseRefreshClaims(token).getSubject();
     }
 
-    public String extractTokenType(String token, JwtTokenType tokenType) {
-        return extractAllClaims(token, tokenType).get(TOKEN_TYPE_CLAIM, String.class);
+    public Instant extractRefreshExpiration(String token) {
+        return parseRefreshClaims(token).getExpiration().toInstant();
     }
 
     public boolean isAccessTokenValid(String token, UserDetails userDetails) {
-        return isTokenValid(token, userDetails, JwtTokenType.ACCESS);
+        Claims claims = parseAccessClaims(token);
+        return userDetails.getUsername().equals(claims.getSubject())
+                && JwtTokenType.ACCESS.name().equals(claims.get(TOKEN_TYPE_CLAIM, String.class))
+                && claims.getExpiration().toInstant().isAfter(Instant.now());
     }
 
     public boolean isRefreshTokenValid(String token, UserDetails userDetails) {
-        return isTokenValid(token, userDetails, JwtTokenType.REFRESH);
+        Claims claims = parseRefreshClaims(token);
+        return userDetails.getUsername().equals(claims.getSubject())
+                && JwtTokenType.REFRESH.name().equals(claims.get(TOKEN_TYPE_CLAIM, String.class))
+                && claims.getExpiration().toInstant().isAfter(Instant.now());
     }
 
     public Collection<?> extractAuthorities(String token) {
-        return extractAllClaims(token, JwtTokenType.ACCESS).get(AUTHORITIES_CLAIM, Collection.class);
+        return parseAccessClaims(token).get(AUTHORITIES_CLAIM, Collection.class);
     }
 
-    private boolean isTokenValid(String token, UserDetails userDetails, JwtTokenType tokenType) {
-        String subject = extractSubject(token, tokenType);
-        String resolvedType = extractTokenType(token, tokenType);
-        return subject.equals(userDetails.getUsername())
-                && resolvedType.equals(tokenType.name())
-                && extractExpiration(token, tokenType).isAfter(Instant.now());
-    }
-
-    private String buildToken(
-            Map<String, Object> extraClaims,
-            UserDetails userDetails,
-            long expirationSeconds,
-            SecretKey secretKey
-    ) {
+    private String buildAccessToken(Map<String, Object> claims, UserDetails userDetails) {
         Instant now = Instant.now();
         return Jwts.builder()
-                .claims(extraClaims)
+                .claims(claims)
                 .subject(userDetails.getUsername())
                 .issuedAt(Date.from(now))
-                .expiration(Date.from(now.plusSeconds(expirationSeconds)))
+                .expiration(Date.from(now.plusSeconds(jwtProperties.accessExpiration())))
                 .id(UUID.randomUUID().toString())
-                .signWith(secretKey)
+                .signWith(accessSigningKey())
                 .compact();
     }
 
-    private <T> T extractClaim(String token, Function<Claims, T> claimsResolver, JwtTokenType tokenType) {
-        Claims claims = extractAllClaims(token, tokenType);
-        return claimsResolver.apply(claims);
+    private String buildRefreshToken(Map<String, Object> claims, UserDetails userDetails) {
+        Instant now = Instant.now();
+        return Jwts.builder()
+                .claims(claims)
+                .subject(userDetails.getUsername())
+                .issuedAt(Date.from(now))
+                .expiration(Date.from(now.plusSeconds(jwtProperties.refreshExpiration())))
+                .id(UUID.randomUUID().toString())
+                .signWith(refreshSigningKey())
+                .compact();
     }
 
-    private Claims extractAllClaims(String token, JwtTokenType tokenType) {
+    private Claims parseAccessClaims(String token) {
         return Jwts.parser()
-                .verifyWith(resolveSigningKey(tokenType))
+                .verifyWith(accessSigningKey())
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
     }
 
-    private SecretKey resolveSigningKey(JwtTokenType tokenType) {
-        return tokenType == JwtTokenType.ACCESS ? accessSigningKey() : refreshSigningKey();
+    private Claims parseRefreshClaims(String token) {
+        return Jwts.parser()
+                .verifyWith(refreshSigningKey())
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
     }
 
     private SecretKey accessSigningKey() {

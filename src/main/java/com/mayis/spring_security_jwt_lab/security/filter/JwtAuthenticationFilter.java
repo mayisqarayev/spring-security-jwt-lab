@@ -2,7 +2,6 @@ package com.mayis.spring_security_jwt_lab.security.filter;
 
 import com.mayis.spring_security_jwt_lab.security.auth.CustomUserDetailsService;
 import com.mayis.spring_security_jwt_lab.security.jwt.JwtService;
-import com.mayis.spring_security_jwt_lab.security.jwt.JwtTokenType;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -41,7 +40,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String token = authorizationHeader.substring(7);
 
         try {
-            String subject = jwtService.extractSubject(token, JwtTokenType.ACCESS);
+            String subject = jwtService.extractAccessSubject(token);
 
             if (subject != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                 UserDetails userDetails = customUserDetailsService.loadUserByUsername(subject);

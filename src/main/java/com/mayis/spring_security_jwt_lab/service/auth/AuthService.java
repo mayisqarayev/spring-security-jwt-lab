@@ -15,7 +15,6 @@ import com.mayis.spring_security_jwt_lab.repository.user.UserRepository;
 import com.mayis.spring_security_jwt_lab.repository.user.UserRoleRepository;
 import com.mayis.spring_security_jwt_lab.security.auth.CustomUserDetails;
 import com.mayis.spring_security_jwt_lab.security.jwt.JwtService;
-import com.mayis.spring_security_jwt_lab.security.jwt.JwtTokenType;
 import com.mayis.spring_security_jwt_lab.service.token.RefreshTokenService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -89,7 +88,7 @@ public class AuthService {
     @Transactional
     public AuthResponse refresh(RefreshTokenRequest request, HttpServletRequest httpServletRequest) {
         String refreshToken = request.refreshToken();
-        String subject = jwtService.extractSubject(refreshToken, JwtTokenType.REFRESH);
+        String subject = jwtService.extractRefreshSubject(refreshToken);
         User user = userRepository.findByEmail(subject)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
         CustomUserDetails userDetails = new CustomUserDetails(user);
@@ -119,7 +118,7 @@ public class AuthService {
                 refreshToken,
                 httpServletRequest.getRemoteAddr(),
                 httpServletRequest.getHeader("User-Agent"),
-                jwtService.extractExpiration(refreshToken, JwtTokenType.REFRESH)
+                jwtService.extractRefreshExpiration(refreshToken)
         );
 
         return authConverter.toAuthResponse(
